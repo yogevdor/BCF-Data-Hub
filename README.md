@@ -1,18 +1,17 @@
-# BCF Data Hub: cited, access-controlled answers from lab experiment data
+# BCF Data Hub: A RAG-Powered AI Assistant for Lab Records
 
-> A 3-day hackathon project (LabAI Hackathon, October 2026), built by a team of students with a university research facility (the BCF, Bioinformatics Core Facility). It turns a pile of experiment packages into a chat assistant that answers scientific questions **only from records the asker is allowed to see, and cites every claim by experiment ID**.
+> A 3-day hackathon project (LabAI Hackathon, October 2026), built by a team of students with a university research facility, the BCF - Biomedical Core Facility. It turns a pile of experiment packages into a chat assistant that answers scientific questions **only from records the asker is allowed to see, and cites every claim by experiment ID**.
 >
-> The original repository is private to the faculty, so this repo holds the write-up only: the problem, the idea and the design. All data used in the hackathon was synthetic.
+> The original repository is private to the faculty, so this repo holds the write-up only: the problem, the idea and the design.
 
 ![Architecture](docs/architecture.png)
-
-The editable PowerPoint version of this diagram is in [`docs/architecture.pptx`](docs/architecture.pptx).
 
 ---
 
 ## 1. The problem
 
-A core facility runs experiments for many research groups across three domains: **flow cytometry, microscopy and metabolomics**. Each experiment is a folder of raw files, processed tables, a results card and free-text notes. Researchers want to ask things like:
+The BCF runs experiments for many research groups across various domains.
+Each experiment is a folder of raw files, processed tables, a results card and free-text notes. Researchers want to ask things like:
 
 - *"Has the spleen neutrophil response to LPS reproduced across our repeats?"*
 - *"Is itaconate induction seen in both mouse and human?"*
@@ -26,7 +25,7 @@ Putting an LLM on top of this is risky in ways that matter for science and for p
 | **Hallucinated numbers** | LLMs invent fold changes and p-values that look plausible. |
 | **Bad statistics** | "Experiment A showed a bigger effect than B" is a claim that needs a test, not a glance at two numbers. |
 | **Lost negatives** | A model tends to report only what was significant. "Tested, no effect" and "never measured" get mixed up. |
-| **Dirty input** | Packages with a missing ID or a missing required field would silently corrupt answers. |
+| **Dirty input** | Packages that fail quality checks could silently corrupt answers. |
 
 ## 2. The idea
 
@@ -64,7 +63,7 @@ experiment zip -> Loader (validate) -> Lake (Parquet) -> Agent DB (DuckDB)
 | `measurements` | measured value | per-sample values, unit |
 | `text_chunks` | piece of text | narrative, methods, deviations, embeddings |
 
-"Not applicable" is stored as `NULL`, never `"N/A"`, `0` or `-1`.
+"Not applicable" is stored as `NULL`.
 
 ### Question time (per user question)
 
@@ -80,45 +79,25 @@ Login -> Planner (LLM) -> Tools (code) <-> Agent DB -> Writer (LLM) -> Checker (
 | **Writer** | LLM | Writes the answer from the returned rows only, citing experiment IDs. |
 | **Checker** | code | Verifies citations and numbers against tool output. On failure: one retry, then "the data can't answer this." |
 
-**Tools** include `find_experiments`, `get_findings`, `compare_repeats`, `aggregate_repeats`, `search_text`, `get_measurements`, `summarize_measurements`, `count_experiments`, `get_withheld_count` and `get_rejected_packages`. `search_text` is hybrid retrieval: BM25 keywords with synonym expansion (for example CD8 / cytotoxic T cells, KO / knockout) plus `nomic-embed-text` embeddings, merged by reciprocal rank fusion, falling back to keywords only if the embedding server is down.
+**Tools** include `find_experiments`, `get_findings`, `compare_repeats`, `aggregate_repeats`, `search_text`, `get_measurements`, `summarize_measurements`, `count_experiments`, `get_withheld_count` and `get_rejected_packages`.
+
+`search_text` is hybrid retrieval: BM25 keywords with synonym expansion plus `nomic-embed-text` embeddings, merged by reciprocal rank fusion.
 
 ## 4. Key design decisions
 
 **Access control**
 - `private` = the creator and their PI; `group` = the research group; `institution` = every signed-in user; the data steward sees everything except PII.
-- **PII/PHI experiments** are loaded into the lake, but their content never reaches the model, for anyone. The agent DB keeps only a stub row so a tool can report "a match was withheld" as a **count**.
-- Access is tested directly with a users x experiments matrix in `tests/`.
 
 **Scientific honesty**
 - **Compare direction and significance across experiments, not raw values.** The system does not say one experiment's result is larger than another's unless a test of that difference supports it. It shows fold changes and p-values side by side.
 - **A repeat that disagrees is reported together with its recorded deviation.** It is not averaged away, and the system does not speculate about the cause.
 - **Non-significant findings are kept.** An answer distinguishes three states: *significant effect*, *tested with no effect*, *never measured*.
-- Summary means are allowed only through `aggregate_repeats`, which always carries each experiment's value, range and significance tally. "3 of 4 experiments" is a tally of evidence, not a meta-analysis.
 
 **Engineering**
 - The LLM runs through a single wrapper that talks to an OpenAI-compatible endpoint (Ollama, `qwen3` family for chat, `nomic-embed-text` for embeddings). The endpoint and model names live in `.env`, so the model can be swapped.
 - The planner sees only a short preview of tool results while the writer gets the full rows. This fixed a context-overflow problem on broad questions.
-- A Streamlit portal provides login, one question box, conversation history, search, download and an admin view for users and research groups.
 
-## 5. Tech stack
+## 5. Testing and evaluation
 
-Python, DuckDB, Parquet (PyArrow), Streamlit, Ollama (OpenAI-compatible API with tool calling), `nomic-embed-text`, pandas, pydantic, pytest.
-
-## 6. Testing and evaluation
-
-- **Access tests**: every user x every experiment, checking that nothing outside the allowed set, and no PII content, is ever returned.
 - **Unit tests** for the loader and validation, query functions, search, synonyms, aggregation, planner/writer and the portal.
 - **A 32-question benchmark** run end to end as named users. It covers lookups, quantitative questions, replication, cross-domain and cross-species questions, PII refusals, null results, time courses, confounding, synonyms, methods summaries, not-answerable questions, validation and aggregation.
-
-## 7. My contribution
-
-<!-- Fill this in before sharing. Be specific and honest, for example:
-- Which stage you owned (lake / query / agent) and which files or features.
-- One hard problem you solved and how (for example the checker, the filtered views, the portal).
-- What you would do differently. -->
-
-## 8. What I would improve
-
-- Replace the regex-based number checker with a structured answer format (claims linked to tool-result row IDs).
-- Add automated answer-quality evaluation to the 32-question run, not just pass/fail on errors.
-- Move access rules to row-level policies in the database rather than per-session views.
