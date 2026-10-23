@@ -101,3 +101,16 @@ Login -> Planner (LLM) -> Tools (code) <-> Agent DB -> Writer (LLM) -> Checker (
 
 - **Unit tests** for the loader and validation, query functions, search, synonyms, aggregation, planner/writer and the portal.
 - **A 32-question benchmark** run end to end as named users. It covers lookups, quantitative questions, replication, cross-domain and cross-species questions, PII refusals, null results, time courses, confounding, synonyms, methods summaries, not-answerable questions, validation and aggregation.
+
+## 6. Demo
+
+### Example answers
+
+![Simple RAG using SQL tool](docs/images/Answer_With_SQL_Tools.png)
+
+![Hybrid Search using BM25 + Vector embeddings](docs/images/Answer_With_SQL_Tools.png)
+
+### Short demo
+
+https://github.com/user-attachments/assets/a57251c9-2a3f-439e-aa6c-8ce88f85765b
+
