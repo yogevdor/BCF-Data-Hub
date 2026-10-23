@@ -106,9 +106,11 @@ Login -> Planner (LLM) -> Tools (code) <-> Agent DB -> Writer (LLM) -> Checker (
 
 ### Example answers
 
-![Simple RAG using SQL tool](docs/images/Answer_With_SQL_Tools.png)
+Simple RAG using SQL tool
+![Simple RAG using SQL tool](docs/Answer_With_SQL_Tools.png)
 
-![Hybrid Search using BM25 + Vector embeddings](docs/images/Answer_With_SQL_Tools.png)
+Hybrid Search using BM25 + Vector embeddings
+![Hybrid Search using BM25 + Vector embeddings](docs/Hybrid_Search.png)
 
 ### Short demo
 
