@@ -114,5 +114,7 @@ Hybrid Search using BM25 + Vector embeddings
 
 ### Short demo
 
-https://github.com/user-attachments/assets/a57251c9-2a3f-439e-aa6c-8ce88f85765b
+https://github.com/user-attachments/assets/620b3e04-0c4c-4987-b38e-d47f37c8fc14
+
+
 
